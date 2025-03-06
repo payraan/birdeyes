@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, Query
 import requests
 import os
 import uvicorn
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Birdeye API",
-    description="API for retrieving Solana DeFi data from Birdeye (Standard tier)",
+    description="API for retrieving Solana DeFi data from Birdeye (Free tier)",
     version="1.0.0"
 )
 
@@ -34,7 +34,7 @@ app.add_middleware(
 API_KEY = os.getenv("BIRDEYE_API_KEY", "63171bd11b984f239e042b0b169463a4")
 BASE_URL = "https://public-api.birdeye.so"
 
-# Rate limiting setup - Standard tier: 10 requests per second
+# Rate limiting setup - Free tier: 10 requests per second
 RATE_LIMIT = 10  # requests per second
 last_request_time = 0
 request_count = 0
@@ -115,9 +115,9 @@ async def fetch_from_birdeye(endpoint: str, params: Optional[Dict[str, Any]] = N
             "status_code": 500
         }
 
-# --- VERIFIED WORKING ENDPOINTS ---
+# --- ONLY WORKING ENDPOINT ---
 
-# 1️⃣ Token Price (Confirmed working)
+# Token Price (Confirmed working)
 @app.get("/public/token/price/{address}")
 async def get_token_price_public(
     address: str,
@@ -125,148 +125,11 @@ async def get_token_price_public(
 ):
     """
     Get current price information for a token (Confirmed working)
+    
+    This is the only endpoint that works with the free tier of Birdeye API.
     """
     params = {"chain_id": chain_id}
     return await fetch_from_birdeye(f"/defi/price?address={address}", params)
-
-# 2️⃣ Token Historical Price
-@app.get("/public/token/history/{address}")
-async def get_token_price_history_public(
-    address: str,
-    type: Optional[str] = Query("1D", description="Time interval (1H, 1D, 1W, 1M, 1Y)"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get historical price data for a token
-    """
-    params = {
-        "type": type,
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye(f"/defi/price_history?address={address}", params)
-
-# 3️⃣ Token List
-@app.get("/public/token/list")
-async def get_token_list_public(
-    sort_by: Optional[str] = Query("mc", description="Field to sort by (mc, volume, etc.)"),
-    sort_type: Optional[str] = Query("d", description="Sort direction (a=ascending, d=descending)"),
-    offset: Optional[int] = Query(0, description="Pagination offset"),
-    limit: Optional[int] = Query(10, description="Number of results (max 100)"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get a list of tokens with sorting and pagination
-    """
-    params = {
-        "sort_by": sort_by,
-        "sort_type": sort_type,
-        "offset": offset,
-        "limit": min(limit, 100),
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye("/defi/tokenlist", params)
-
-# 4️⃣ New Token Listings
-@app.get("/public/tokens/new")
-async def get_new_token_listings_public(
-    count: Optional[int] = Query(10, description="Number of results (max 100)"),
-    offset: Optional[int] = Query(0, description="Pagination offset"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get recently listed tokens
-    """
-    params = {
-        "count": min(count, 100),
-        "offset": offset,
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye("/defi/v2/tokens/new_listing", params)
-
-# 5️⃣ Token Creation Info 
-@app.get("/public/token/creation/{address}")
-async def get_token_creation_info_public(address: str):
-    """
-    Get information about token creation
-    """
-    return await fetch_from_birdeye(f"/defi/token_creation_info?address={address}")
-
-# 6️⃣ Markets
-@app.get("/public/markets")
-async def get_markets_public(
-    count: Optional[int] = Query(10, description="Number of results (max 100)"),
-    offset: Optional[int] = Query(0, description="Pagination offset"),
-    sort_by: Optional[str] = Query("v24hUSD", description="Field to sort by"),
-    sort_type: Optional[str] = Query("d", description="Sort direction (a=ascending, d=descending)"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get market data for token pairs
-    """
-    params = {
-        "count": min(count, 100),
-        "offset": offset,
-        "sort_by": sort_by,
-        "sort_type": sort_type,
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye("/defi/v2/markets", params)
-
-# 7️⃣ Token Trending (From docs)
-@app.get("/public/tokens/trending")
-async def get_trending_tokens_public(
-    sort_by: Optional[str] = Query("mc", description="Field to sort by"),
-    sort_type: Optional[str] = Query("d", description="Sort direction (a=ascending, d=descending)"),
-    offset: Optional[int] = Query(0, description="Pagination offset"),
-    limit: Optional[int] = Query(10, description="Number of results (max 100)"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get trending tokens
-    """
-    params = {
-        "sort_by": sort_by,
-        "sort_type": sort_type,
-        "offset": offset,
-        "limit": min(limit, 100),
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye("/defi/token_trending", params)
-
-# 8️⃣ Search (From docs)
-@app.get("/public/search")
-async def search_public(
-    query: str = Query(..., description="Search query"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID"),
-    limit: Optional[int] = Query(10, description="Number of results (max 100)")
-):
-    """
-    Search for tokens and markets
-    """
-    params = {
-        "q": query,
-        "chain_id": chain_id,
-        "limit": min(limit, 100)
-    }
-    return await fetch_from_birdeye("/defi/v3/search", params)
-
-# 9️⃣ OHLCV (From docs)
-@app.get("/public/ohlcv/{address}")
-async def get_ohlcv_public(
-    address: str,
-    type: Optional[str] = Query("1D", description="Time interval (1H, 1D, 1W, 1M, 1Y)"),
-    count: Optional[int] = Query(100, description="Number of candles"),
-    chain_id: Optional[str] = Query("solana", description="Blockchain ID")
-):
-    """
-    Get OHLCV data for a token
-    """
-    params = {
-        "type": type,
-        "count": min(count, 1000),
-        "chain_id": chain_id
-    }
-    return await fetch_from_birdeye(f"/defi/ohlcv?address={address}", params)
 
 # Run the server
 if __name__ == "__main__":
