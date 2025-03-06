@@ -5,6 +5,7 @@ import uvicorn
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 import logging
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +18,15 @@ app = FastAPI(
     title="Birdeye API",
     description="API for retrieving Solana DeFi data from Birdeye",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins in development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Environment variables
